@@ -10,6 +10,7 @@ function Text(value) {
     this.size = 25;
     this.height = 5;
     this.font = 'helvetiker';
+    this.style = 'normal';
     this.color = 0x00ff00;
 
     function genTextMat(word) {
@@ -18,12 +19,20 @@ function Text(value) {
 
     function genTextGeo(word) {
         //TODO: var value = word.text ? word.text : ' ';
-        var geo = new THREE.TextGeometry(word.text, {
+        var params = {
             size: word.size,
             height: word.height,
             curveSegments: 4,
             font: word.font
-        });
+        };
+
+        if (word.style === 'italic') {
+            params.style = word.style;
+        } else {
+            params.weight = word.style;
+        }
+
+        var geo = new THREE.TextGeometry(word.text, params);
         THREE.GeometryUtils.center(geo);
         return geo;
     }
@@ -119,8 +128,7 @@ render();
 document.getElementById('color').addEventListener('click', function(e) {
     if (word.color === 0x00ff00) {
         word.color = 0x0000ff;
-    }
-    else if (word.color === 0x0000ff) {
+    } else if (word.color === 0x0000ff) {
         word.color = 0xff0000;
     } else {
         word.color = 0x00ff00;
@@ -128,6 +136,31 @@ document.getElementById('color').addEventListener('click', function(e) {
     word.update();
 });
 
+document.getElementById('glasses').addEventListener('click', function(e) {
+    // do nothing for now
+});
+
+document.getElementById('font').addEventListener('click', function(e) {
+    if (word.font === 'helvetiker') {
+        word.font = 'optimer';
+    } else if (word.font === 'optimer') {
+        word.font = 'gentilis';
+    } else {
+        word.font = 'helvetiker';
+    }
+    word.update();
+});
+
+document.getElementById('style').addEventListener('click', function(e) {
+    if (word.style === 'normal') {
+        word.style = 'bold';
+    } else if (word.style === 'bold') {
+        word.style = 'italic';
+    } else {
+        word.style = 'normal';
+    }
+    word.update();
+});
 
 // correct backspace key behavior
 document.addEventListener('keydown', function(e) {
