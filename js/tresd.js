@@ -49,20 +49,27 @@ function Text(value) {
 
     this.build = function() {
         this.mesh = new THREE.Mesh(this.geometry, this.material);
-        this.mesh.position.y += (30 + 10);
+        this.mesh.position.y += (20 + 10);
         return this.mesh;
     }
 }
 
-function Frames(file) {
+function Frames(file, thickness) {
     this.mesh = null;
 
     this.path = file;
-    this.size = 5;
+    this.thickness = 5;  // z-height of extrusion
     this.color = 0x00ff00;
     this.style = 'normal';
+    
+    // size specs
+    this.eye = 50;
+    this.bridge = 20;
+    this.height = 40;
+    this.armLen = 120;
+    this.size = 5;  // width of the frame
 
-    this.geometry = genNormalFrames(50, 20, 40, 120, this.size, 5);
+    this.geometry = genNormalFrames(this);
     //this.material = new THREE.MeshBasicMaterial({color: 0xffff00, wireframe: true});
     this.material = new THREE.MeshBasicMaterial({
         color: 0xffff00
@@ -85,47 +92,48 @@ function Frames(file) {
     // loader.addEventListener('load', onLoad);
     // loader.load(file);
 
-    function genNormalFrames(eye, bridge, height, arm, size, thickness) {
+    function genNormalFrames(f) {
         var triangleShape = new THREE.Shape();
 
         // eye = 50, bridge = 20, height = 40, arm = 140
         // size = how wide to make frame, 5
         // thickness = z-height for extrusion, 5
 
+        var width = (f.eye * 2) + f.bridge;
+
         //---------- front ------------//
-        var width = (eye * 2) + bridge;
         // frames
         triangleShape.moveTo(0, 0);                      //lower left
-		triangleShape.lineTo(0, height);                 //upper left
-        triangleShape.lineTo(width, height);             //upper rigt
+		triangleShape.lineTo(0, f.height);                 //upper left
+        triangleShape.lineTo(width, f.height);             //upper rigt
         triangleShape.lineTo(width, 0);                  //lower right
-        triangleShape.lineTo(eye + bridge, 0);
-        triangleShape.lineTo(eye + bridge,
-                                height - (2 * size));    // bridge
-        triangleShape.lineTo(eye, height - (2 * size));
-        triangleShape.lineTo(eye, 0);
+        triangleShape.lineTo(f.eye + f.bridge, 0);
+        triangleShape.lineTo(f.eye + f.bridge,
+                                f.height - (2 * f.size));    // bridge
+        triangleShape.lineTo(f.eye, f.height - (2 * f.size));
+        triangleShape.lineTo(f.eye, 0);
         triangleShape.lineTo(0, 0);                      //close it up
 
         // left hole
         var leftHole = new THREE.Path();
-        leftHole.moveTo(size, size);
-        leftHole.lineTo(eye - size, size);
-        leftHole.lineTo(eye - size, height - size);
-        leftHole.lineTo(size, height - size);
-        leftHole.lineTo(size, size);
+        leftHole.moveTo(f.size, f.size);
+        leftHole.lineTo(f.eye - f.size, f.size);
+        leftHole.lineTo(f.eye - f.size, f.height - f.size);
+        leftHole.lineTo(f.size, f.height - f.size);
+        leftHole.lineTo(f.size, f.size);
         triangleShape.holes.push(leftHole);
 
         // right hole
         var rightHole = new THREE.Path();
-        rightHole.moveTo(eye + bridge + size, size);
-        rightHole.lineTo(width - size, size);
-        rightHole.lineTo(width - size, height - size);
-        rightHole.lineTo(eye + bridge + size, height - size);
-        rightHole.lineTo(eye + bridge + size, size);
+        rightHole.moveTo(f.eye + f.bridge + f.size, f.size);
+        rightHole.lineTo(width - f.size, f.size);
+        rightHole.lineTo(width - f.size, f.height - f.size);
+        rightHole.lineTo(f.eye + f.bridge + f.size, f.height - f.size);
+        rightHole.lineTo(f.eye + f.bridge + f.size, f.size);
         triangleShape.holes.push(rightHole);
 
         var extrudeSettings = {
-            amount: thickness,
+            amount: f.thickness,
             //bevelThickness: 0,
             //bevelSize: 0,
             //bevelSegments : 0,
@@ -134,34 +142,50 @@ function Frames(file) {
             steps: 1
         };
         var frontGeo = triangleShape.extrude(extrudeSettings);
+        THREE.GeometryUtils.center(frontGeo);
+        //frontGeo.computeBoundingBox();
 
 
         //---------- left arm ------------//
-        var armShape = new THREE.Shape();
-        armShape.moveTo(0, height);
-        armShape.lineTo(-size, height);
-        armShape.lineTo(-size, height - size);
-        armShape.lineTo(0, height - size);
-        armShape.lineTo(0, height);
+        var offset = frontGeo.boundingBox.min;
 
-        var leftArmGeo = armShape.extrude({amount: arm, bevelEnabled: false});
+        var armShape = new THREE.Shape();
+        armShape.moveTo(0, f.height);
+        armShape.lineTo(-f.size, f.height);
+        armShape.lineTo(-f.size, f.height - f.size);
+        armShape.lineTo(0, f.height - f.size);
+        armShape.lineTo(0, f.height);
+
+        var leftArmGeo = armShape.extrude({amount: f.armLen, bevelEnabled: false});
+        // move it to the left side
+        leftArmGeo.applyMatrix(
+            new THREE.Matrix4().makeTranslation(offset.x, offset.y, offset.z));
 
 
         //---------- right arm ------------//
+        var offset2 = frontGeo.boundingBox.max;
+
         var armShape2 = new THREE.Shape();
-        armShape2.moveTo(width, height);
-        armShape2.lineTo(width + size, height);
-        armShape2.lineTo(width + size, height - size);
-        armShape2.lineTo(width, height - size);
-        armShape2.lineTo(width, height);
+        armShape2.moveTo(0, f.height);
+        armShape2.lineTo(-f.size, f.height);
+        armShape2.lineTo(-f.size, f.height - f.size);
+        armShape2.lineTo(0, f.height - f.size);
+        armShape2.lineTo(0, f.height);
+        //armShape2.moveTo(offset.x + width, f.height);
+        //armShape2.lineTo(offset.x + width + f.size, f.height);
+        //armShape2.lineTo(offset.x + width + f.size, f.height - f.size);
+        //armShape2.lineTo(offset.x + width, f.height - f.size);
+        //armShape2.lineTo(offset.x + width, f.height);
 
-        var rightArmGeo = armShape2.extrude({amount: arm, bevelEnabled: false});
-
-        var geo = frontGeo; // set front as the parent for the merge
-        THREE.GeometryUtils.merge(geo, leftArmGeo);
-        THREE.GeometryUtils.merge(geo, rightArmGeo);
-        THREE.GeometryUtils.center(geo);
-        return geo;
+        var rightArmGeo = armShape2.extrude({amount: f.armLen, bevelEnabled: false});
+        // move to right side
+        rightArmGeo.applyMatrix(
+            new THREE.Matrix4().makeTranslation(offset2.x + f.size, offset.y, offset.z));
+        //var geo = frontGeo; // set front as the parent for the merge
+        //THREE.GeometryUtils.center(geo);
+        THREE.GeometryUtils.merge(frontGeo, leftArmGeo);
+        THREE.GeometryUtils.merge(frontGeo, rightArmGeo);
+        return frontGeo;
     }
 
     this.update = function() {
@@ -171,7 +195,7 @@ function Frames(file) {
     this.build = function(e) {
         this.mesh = new THREE.Mesh(this.geometry, this.material);
         this.mesh.rotation.y = Math.PI;
-        this.mesh.position.z = -70;
+        //this.mesh.position.z = -70;
         return this.mesh
     } 
 }
